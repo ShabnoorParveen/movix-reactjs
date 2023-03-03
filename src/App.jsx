@@ -1,0 +1,81 @@
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { fetchDataFromApi } from "./utils/api";
+
+import { useSelector, useDispatch } from "react-redux";
+import { getApiConfiguration, getGenres } from "./store/homeSlice";
+
+import Header from "./components/header/Header";
+import Footer from "./components/footer/Footer";
+import Home from "./pages/home/Home";
+import Details from "./pages/details/Details";
+import SearchResult from "./pages/searchResult/SearchResult";
+import Explore from "./pages/explore/Explore";
+import PageNotFound from "./pages/404/PageNotFound";
+
+function App() {
+    //calling getApiConfiguration(action) using useDispatch hook
+    const dispatch = useDispatch();
+    const { url } = useSelector((state) => state.home);
+    console.log(url);
+
+    useEffect(() => {
+        fetchApiConfig();
+        genresCall();
+    }, []);
+
+    //calling method
+    const fetchApiConfig = () => {
+        fetchDataFromApi("/configuration").then((res) => {
+            console.log(res);
+
+            const url = {
+                backdrop: res.images.secure_base_url + "original",
+                poster: res.images.secure_base_url + "original",
+                profile: res.images.secure_base_url + "original",
+            };
+
+            dispatch(getApiConfiguration(url));
+        });
+    };
+//for callling genres
+    const genresCall = async () => {
+        let promises = [];
+        let endPoints = ["tv", "movie"];//endpint
+        let allGenres = {};//object
+
+        //pushing data by running a loop
+        endPoints.forEach((url) => {
+            promises.push(fetchDataFromApi(`/genre/${url}/list`));
+        });
+//returning all data together
+        const data = await Promise.all(promises);
+        console.log(data);
+        data.map(({ genres }) => {
+            //saving datas in allGenres
+            //making id as key, if id not preset then it will give a id 
+            //then returning to object and save in all geners
+            return genres.map((item) => (allGenres[item.id] = item));
+        });
+
+        dispatch(getGenres(allGenres));
+    };
+
+    return (
+        <BrowserRouter>
+            <Header />
+            <Routes>
+                {/* setting path for every element in home page  */}
+                <Route path="/" element={<Home />} />
+                <Route path="/:mediaType/:id" element={<Details />} />
+                <Route path="/search/:query" element={<SearchResult />} />
+                <Route path="/explore/:mediaType" element={<Explore />} />
+                {/* if no route available then pagr not found will appear */}
+                <Route path="*" element={<PageNotFound />} />
+            </Routes>
+            <Footer />
+        </BrowserRouter>
+    );
+}
+
+export default App;
